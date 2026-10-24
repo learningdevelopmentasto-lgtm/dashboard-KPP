@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L&D Dashboard Operator - PT KPP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // MASUKKAN WEB APP URL GOOGLE APPS SCRIPT ANDA DI BAWAH INI:
+        const GOOGLE_SCRIPT_URL = "MASUKKAN_WEB_APP_URL_DARI_STEP_2_DI_SINI";
+
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [usernameInput, setUsernameInput] = useState('');
+            const [passwordInput, setPasswordInput] = useState('');
+            const [loginError, setLoginError] = useState('');
+
+            const [activeTab, setActiveTab] = useState("dashboard");
+            const [operators, setOperators] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingOperator, setEditingOperator] = useState(null);
+            const [formData, setFormData] = useState({
+                nrp: '', name: '', unitType: 'Scania P410 Dump Truck', department: 'Mining Operations', email: '', status: 'Kompeten'
+            });
+
+            // Tarik Data Real-time dari Google Sheets
+            const fetchOperatorsData = () => {
+                setLoading(true);
+                fetch(GOOGLE_SCRIPT_URL)
+                    .then(res => res.json())
+                    .then(data => {
+                        setOperators(data);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error("Gagal load data:", err);
+                        setLoading(false);
+                    });
+            };
+
+            useEffect(() => {
+                fetchOperatorsData();
+            }, []);
+
+            // Handle Login
+            const handleLogin = (e) => {
+                e.preventDefault();
+                setLoginError('');
+                if (usernameInput === 'admin' && passwordInput === 'admin123') {
+                    setCurrentUser({ name: 'Super Admin', role: 'admin' });
+                } else if (usernameInput === 'user' && passwordInput === 'user123') {
+                    setCurrentUser({ name: 'Operator View', role: 'user' });
+                } else {
+                    setLoginError('Username atau Password salah!');
+                }
+            };
+
+            // Handle Tambah / Edit
+            const handleOpenModal = (operator = null) => {
+                if (operator) {
+                    setEditingOperator(operator);
+                    setFormData(operator);
+                } else {
+                    setEditingOperator(null);
+                    setFormData({ nrp: '', name: '', unitType: 'Scania P410 Dump Truck', department: 'Mining Operations', email: '', status: 'Kompeten' });
+                }
+                setIsModalOpen(true);
+            };
+
+            const handleSaveOperator = (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setIsModalOpen(false);
+
+                fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                })
+                .then(() => {
+                    alert("Data berhasil disimpan ke Google Sheets!");
+                    setTimeout(() => fetchOperatorsData(), 1500);
+                })
+                .catch(err => {
+                    alert("Gagal menyimpan data.");
+                    setLoading(false);
+                });
+            };
+
+            if (!currentUser) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
+                        <div className="max-w-md w-full bg-white rounded-xl shadow-2xl p-8">
+                            <div className="text-center mb-6">
+                                <h2 className="text-2xl font-bold text-slate-800">L&D Portal System Login</h2>
+                                <p className="text-sm text-slate-500">PT Kalimantan Prima Persada</p>
+                            </div>
+                            {loginError && <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded">{loginError}</div>}
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Username</label>
+                                    <input type="text" required className="w-full p-2.5 border rounded-lg" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} placeholder="admin / user" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Password</label>
+                                    <input type="password" required className="w-full p-2.5 border rounded-lg" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="admin123 / user123" />
+                                </div>
+                                <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-600 font-bold rounded-lg transition">Masuk Dashboard</button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-6">
+                    <div className="max-w-7xl mx-auto space-y-6">
+                        <header className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
+                            <div>
+                                <h1 className="text-xl font-bold">L&D Dashboard - Heavy Equipment Fleet</h1>
+                                <p className="text-sm text-slate-500">Integrasi Database Google Sheets Real-Time</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold">{currentUser.name} ({currentUser.role})</span>
+                                <button onClick={() => setCurrentUser(null)} className="px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg">Keluar</button>
+                            </div>
+                        </header>
+
+                        <div className="flex justify-between items-center bg-white p-2 rounded-xl border">
+                            <div className="flex gap-2">
+                                <button onClick={() => setActiveTab("dashboard")} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'dashboard' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Ringkasan</button>
+                                <button onClick={() => setActiveTab("operators")} className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === 'operators' ? 'bg-slate-900 text-white' : 'text-slate-600'}`}>Data Operator</button>
+                            </div>
+                            {currentUser.role === 'admin' && (
+                                <button onClick={() => handleOpenModal()} className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700">+ Tambah / Edit Operator</button>
+                            )}
+                        </div>
+
+                        {loading ? (
+                            <div className="bg-white p-12 text-center rounded-xl shadow-sm border">
+                                <p className="text-slate-500 font-medium animate-pulse">Sedang sinkronisasi data dari Google Sheets...</p>
+                            </div>
+                        ) : (
+                            <>
+                                {activeTab === "dashboard" && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="p-6 bg-white rounded-xl shadow-sm border">
+                                            <h3 className="text-sm text-slate-500 font-medium">Total Operator (Database)</h3>
+                                            <p className="text-3xl font-bold mt-1">{operators.length}</p>
+                                        </div>
+                                        <div className="p-6 bg-white rounded-xl shadow-sm border">
+                                            <h3 className="text-sm text-slate-500 font-medium">Operator Scania Fleet</h3>
+                                            <p className="text-3xl font-bold text-amber-600 mt-1">{operators.filter(o => String(o.UnitType).includes("Scania")).length}</p>
+                                        </div>
+                                        <div className="p-6 bg-white rounded-xl shadow-sm border">
+                                            <h3 className="text-sm text-slate-500 font-medium">Status Kompeten</h3>
+                                            <p className="text-3xl font-bold text-emerald-600 mt-1">{operators.filter(o => o.Status === "Kompeten").length}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === "operators" && (
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-lg font-semibold">Daftar Operator Terdaftar</h2>
+                                            <button onClick={fetchOperatorsData} className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded border">🔄 Refresh Data</button>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-slate-50 border-b">
+                                                    <tr>
+                                                        <th className="p-3">NRP</th>
+                                                        <th className="p-3">Nama</th>
+                                                        <th className="p-3">Unit Operasional</th>
+                                                        <th className="p-3">Departemen</th>
+                                                        <th className="p-3">Status</th>
+                                                        {currentUser.role === 'admin' && <th className="p-3 text-center">Aksi</th>}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {operators.map((op, idx) => (
+                                                        <tr key={idx} className="border-b hover:bg-slate-50">
+                                                            <td className="p-3 font-medium">{op.NRP}</td>
+                                                            <td className="p-3">{op.Nama}</td>
+                                                            <td className="p-3">{op.UnitType}</td>
+                                                            <td className="p-3">{op.Department}</td>
+                                                            <td className="p-3">
+                                                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${op.Status === 'Kompeten' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{op.Status}</span>
+                                                            </td>
+                                                            {currentUser.role === 'admin' && (
+                                                                <td className="p-3 text-center">
+                                                                    <button onClick={() => handleOpenModal({ nrp: op.NRP, name: op.Nama, unitType: op.UnitType, department: op.Department, email: op.Email, status: op.Status })} className="px-2.5 py-1 text-xs bg-amber-500 text-white rounded">Edit</button>
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Modal Tambah / Edit */}
+                        {isModalOpen && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
+                                    <h3 className="text-lg font-bold mb-4">{editingOperator ? 'Edit Profil Operator' : 'Tambah Operator Baru'}</h3>
+                                    <form onSubmit={handleSaveOperator} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">NRP (Kunci Otomatis)</label>
+                                            <input type="text" required className="w-full p-2 border rounded" value={formData.nrp} onChange={e => setFormData({...formData, nrp: e.target.value})} readOnly={!!editingOperator} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">Nama Lengkap</label>
+                                            <input type="text" required className="w-full p-2 border rounded" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">Unit Alat Berat</label>
+                                            <select className="w-full p-2 border rounded" value={formData.unitType} onChange={e => setFormData({...formData, unitType: e.target.value})}>
+                                                <option value="Scania P410 Dump Truck">Scania P410 Dump Truck</option>
+                                                <option value="Scania R580 Heavy Hauler">Scania R580 Heavy Hauler</option>
+                                                <option value="Komatsu HD785-7">Komatsu HD785-7</option>
+                                                <option value="Caterpillar 777D">Caterpillar 777D</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">Departemen</label>
+                                            <input type="text" required className="w-full p-2 border rounded" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold mb-1">Status Kompetensi</label>
+                                            <select className="w-full p-2 border rounded" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                                                <option value="Kompeten">Kompeten</option>
+                                                <option value="Perlu Remidial">Perlu Remidial</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex justify-end gap-2 pt-4 border-t">
+                                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm bg-slate-200 rounded">Batal</button>
+                                            <button type="submit" className="px-4 py-2 text-sm bg-emerald-600 text-white rounded">Simpan ke Sheets</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
